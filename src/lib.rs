@@ -6,3 +6,4 @@ pub mod nazopuyo_solver;
 pub mod next_puyo;
 pub mod naive_next_puyo;
 pub mod nazopuyo_info;
+pub mod none_recursive_solver;

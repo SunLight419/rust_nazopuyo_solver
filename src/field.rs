@@ -92,7 +92,7 @@ where
                 }
                 vis[i][j] = true;
                 let color = next_field.get(i, j);
-                if color == 0 || color == 1 {
+                if color <= 1 {
                     continue;
                 }
                 let mut que = VecDeque::new();

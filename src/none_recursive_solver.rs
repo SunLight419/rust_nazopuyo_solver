@@ -21,7 +21,7 @@ use std::thread::{self, ThreadId};
 // use super::field::Field;
 
 #[derive(Debug)]
-pub struct Solver<F>
+pub struct NoneRecursiveSolver<F>
 where
     F: Field + Clone + PartialEq + Eq + Hash + std::fmt::Display + Send + 'static,
 {
@@ -30,7 +30,7 @@ where
     hash: HashSet<F>,
 }
 
-impl<F> Solver<F>
+impl<F> NoneRecursiveSolver<F>
 where
     F: Field + Clone + PartialEq + Eq + Hash + std::fmt::Display + Send + 'static,
 {
@@ -42,72 +42,65 @@ where
         }
     }
     pub fn solve(&mut self) -> Option<F> {
-        match self.dfs(self.field.clone(), self.info.clone(), 0) {
+        match self.non_recursive_dfs(self.field.clone(), self.info.clone(), 0) {
             Some(field) => Some(field),
             None => None,
         }
     }
-    fn dfs(&mut self, mut field: F, info: NazopuyoInfo, depth: u32) -> Option<F> {
-        if depth == info.next.len as u32 {
-            // let mut rnd = rand::thread_rng();
-            // if rnd.gen::<u32>() % 1000 == 1 {
-            //     println!("{}", field);
-            // }
-            let f2 = field.clone();
-            // calclate sum of field.value, which is [[u8; 13]; 6];
-            //let total = field.value.iter().map(|x| x.iter().sum::<u8>()).sum::<u8>();
-            if field::chain(&mut field) == info.chain {
-                // println!("{}", f2);
-                //println!("{}", field);
-                return Some(f2);
-            } else {
-                return None;
+    fn non_recursive_dfs(&mut self, mut original_field: F, info: NazopuyoInfo, depth: u32) -> Option<F> {
+        let mut stack = vec![];
+        stack.push((0u32, original_field.clone()));
+        let indicies = [0, 1, 5, 3, 2, 4]; // 反転
+
+        while !stack.is_empty() {
+            let (depth, mut field) = stack.pop().unwrap();
+            if depth == info.next.len as u32 {
+                let f2 = field.clone();
+                if field::chain(&mut field) == info.chain {
+                    return Some(f2);
+                } else {
+                    continue;
+                }
             }
-        }
 
-        let indicies = [2, 4, 3, 5, 1, 0];
-
-        for j in indicies {
-            for index in 0..2 {
-                let y1 = match get_top(&field, j) {
-                    Some(y) => match y {
-                        0 => continue,
-                        _ => y - 1,
-                    },
-                    None => 12,
-                };
-                field.set(y1, j, info.next.value[depth as usize][index]);
-                for dx in 0..2 {
-                    if j + dx >= 6 {
-                        continue;
-                    }
-                    let y2 = match get_top(&field, j + dx) {
+            for j in indicies {
+                for index in 0..2 {
+                    let y1 = match get_top(&field, j) {
                         Some(y) => match y {
-                            0 => {
-                                // field.set(y1, j, 0);
-                                continue;
-                            }
+                            0 => continue,
                             _ => y - 1,
                         },
                         None => 12,
                     };
-                    field.set(y2, j + dx, info.next.value[depth as usize][index ^ 1]);
-                    if !self.hash.contains(&field)
-                        && (depth + 1 == info.next.len as u32
-                            || (field.is_alive() && !field::has_chain(&field)))
-                    {
-                        self.hash.insert(field.clone());
-                        let res = self.dfs(field.clone(), info.clone(), depth + 1);
-                        if res.is_some() {
-                            return res;
+                    field.set(y1, j, info.next.value[depth as usize][index]);
+                    for dx in 0..2 {
+                        if j + dx >= 6 {
+                            continue;
                         }
+                        let y2 = match get_top(&field, j + dx) {
+                            Some(y) => match y {
+                                0 => {
+                                    // field.set(y1, j, 0);
+                                    continue;
+                                }
+                                _ => y - 1,
+                            },
+                            None => 12,
+                        };
+                        field.set(y2, j + dx, info.next.value[depth as usize][index ^ 1]);
+                        if !self.hash.contains(&field)
+                            && (depth + 1 == info.next.len as u32
+                                || (field.is_alive() && !field::has_chain(&field)))
+                        {
+                            self.hash.insert(field.clone());
+                            stack.push((depth + 1, field.clone()));
+                        }
+                        field.set(y2, j + dx, 0);
                     }
-                    field.set(y2, j + dx, 0);
+                    field.set(y1, j, 0);
                 }
-                field.set(y1, j, 0);
             }
         }
-
         None
     }
 
@@ -282,7 +275,7 @@ pub fn chain_5depth() {
     next.value[4][0] = 3;
     next.value[4][1] = 5;
     let info = NazopuyoInfo { chain: 10, next };
-    let mut solver = Solver::new(field, info);
+    let mut solver = NoneRecursiveSolver::new(field, info);
     let res = solver.solve().unwrap();
     println!("{}", res);
 }
@@ -326,7 +319,7 @@ pub fn chain_6depth() {
     next.value[5][0] = 2;
     next.value[5][1] = 3;
     let info = NazopuyoInfo { chain: 12, next };
-    let mut solver = Solver::new(field, info);
+    let mut solver = NoneRecursiveSolver::new(field, info);
     let res = solver.solve().unwrap();
     println!("{}", res);
 }
@@ -370,7 +363,7 @@ pub fn multi_test() {
     next.value[5][0] = 2;
     next.value[5][1] = 3;
     let info = NazopuyoInfo { chain: 12, next };
-    let mut solver = Solver::new(field, info);
+    let mut solver = NoneRecursiveSolver::new(field, info);
     let res = solver.solve_multi();
     println!("{}", res.unwrap());
 }
@@ -402,7 +395,7 @@ pub fn multi_test2() {
     next.value[5][0] = 4;
     next.value[5][1] = 2;
     let info = NazopuyoInfo { chain: 8, next };
-    let mut solver = Solver::new(field, info);
+    let mut solver = NoneRecursiveSolver::new(field, info);
     let res = solver.solve_multi();
     println!("{}", res.unwrap());
 }
@@ -436,7 +429,7 @@ pub fn multi_test3() {
     next.value[6][0] = 4;
     next.value[6][1] = 4;
     let info = NazopuyoInfo { chain: 12, next };
-    let mut solver = Solver::new(field, info);
+    let mut solver = NoneRecursiveSolver::new(field, info);
     let res = solver.solve_multi();
     println!("{}", res.unwrap());
 }
@@ -469,7 +462,7 @@ mod test {
         next.value[1][0] = 3;
         next.value[1][1] = 2;
         let info = NazopuyoInfo { chain: 3, next };
-        let mut solver = Solver::new(field, info);
+        let mut solver = NoneRecursiveSolver::new(field, info);
         let res = solver.solve();
         assert!(res.is_some());
     }
